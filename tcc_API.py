@@ -6,8 +6,6 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
-
-
 app = FastAPI()
 
 origins = [
@@ -27,7 +25,7 @@ def setLight(wich: int, set: bool) -> str:
     """ Set the light switch on or off
 
     Args:
-        wich: The light switch to set
+        wich: The light switch to set, at the moment there's only 2 light switches available (1 and 2)
         set: The value to set the light switch to, True for on, False for off
     """
     d = tinytuya.Device('eb0f8f6acd25010e10pyzi', '192.168.1.8', ':_$w3s1bHJA`76ms', version=3.4)
@@ -44,7 +42,29 @@ def setLight(wich: int, set: bool) -> str:
     elif data['dps'][str(wich)] == set:
         return f'Light {wich} is already {set}'
     
-tools = [setLight]
+@tool
+def setAllLights(set: bool) -> str:
+    """ Set all the light switches on or off
+
+    Args:
+        set: The value to set the light switches to, True for on, False for off
+    """
+    d = tinytuya.Device('eb0f8f6acd25010e10pyzi', '192.168.1.8', ':_$w3s1bHJA`76ms', version=3.4)
+    data = d.status() 
+    data = d.set_status(set, 1)
+    data = d.set_status(set, 2)
+
+@tool
+def checkLights() -> str:
+    """ Check the status of all the light switches
+    """
+
+    d = tinytuya.Device('eb0f8f6acd25010e10pyzi', '192.168.1.8', ':_$w3s1bHJA`76ms', version=3.4)
+    data = d.status() 
+
+    return f'Light 1 is {data["dps"]["1"]}, Light 2 is {data["dps"]["2"]}'
+
+tools = [setLight, checkLights, setAllLights]
 
 os.environ['OPENAI_API_KEY'] = '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'
 
@@ -60,7 +80,7 @@ def input_request(payload: dict = Body(...)):
     messages.append(ai_msg)
 
     for tool_call in ai_msg.tool_calls:
-        selected_tool = {"setLight": setLight}[tool_call["name"]]
+        selected_tool = {"setLight": setLight, "checkLights": checkLights, "setAllLights": setAllLights}[tool_call["name"]]
         tool_msg = selected_tool.invoke(tool_call)
         messages.append(tool_msg)
 
